@@ -12,7 +12,7 @@ Applies a different community theme every day, whether it is installed or not.
 Mark any theme **Love** or **Skip**, or leave it with no preference.
 
 - **Love**: kept when you clear the cache, and used by **Loved themes only**.
-- **Skip**: never chosen again. Skipping the theme in use does not switch away from it.
+- **Skip**: never chosen again. Its download is deleted at the next switch. Skipping the theme in use does not switch away from it.
 
 ## Commands
 
@@ -47,7 +47,7 @@ No other data is sent or collected.
 
 ## Notes
 
-- Downloaded themes stay in `.obsidian/themes` until you clear the cache.
+- Downloaded themes stay in `.obsidian/themes` until you clear the cache. Skipped themes are deleted at the next switch.
 
 ## Install
 

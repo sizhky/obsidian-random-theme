@@ -70,7 +70,8 @@ module.exports = class RandomTheme extends Plugin {
     for (const [state, name] of Object.entries(COMMAND)) {
       this.addCommand({ id: state, name, callback: () => this.mark(state) });
     }
-    this.addSettingTab(new RandomThemeSettings(this));
+    this.settingsTab = new RandomThemeSettings(this);
+    this.addSettingTab(this.settingsTab);
   }
 
   save() {
@@ -132,6 +133,8 @@ module.exports = class RandomTheme extends Plugin {
       const theme = pool[pick(reroll ? key + Date.now() : key, pool.length)];
       await this.ensureInstalled(theme);
       await this.apply(theme);
+      await this.removeDownloaded((n) => this.data.skipped.includes(n));
+      if (this.settingsTab.containerEl.isShown()) this.settingsTab.display();
     } catch (e) {
       console.error("random-theme", e);
     }
@@ -162,14 +165,19 @@ module.exports = class RandomTheme extends Plugin {
   }
 
   /** Removes plugin-downloaded themes that are neither loved nor active. Returns removed names. */
-  async clearCache() {
-    const keep = new Set([...this.data.loved, this.app.customCss.theme]);
-    const removed = this.data.downloaded.filter((n) => !keep.has(n));
+  clearCache() {
+    return this.removeDownloaded((n) => !this.data.loved.includes(n));
+  }
+
+  /** Removes plugin-downloaded themes that match `drop`, never the active one. Returns removed names. */
+  async removeDownloaded(drop) {
+    const removed = this.data.downloaded.filter((n) => n !== this.app.customCss.theme && drop(n));
+    if (!removed.length) return removed;
     for (const name of removed) {
       const dir = this.themeDir(name);
       if (await this.app.vault.adapter.exists(dir)) await this.app.vault.adapter.rmdir(dir, true);
     }
-    this.data.downloaded = this.data.downloaded.filter((n) => keep.has(n));
+    this.data.downloaded = this.data.downloaded.filter((n) => !removed.includes(n));
     await this.save();
     await this.app.customCss.readThemes?.();
     return removed;
