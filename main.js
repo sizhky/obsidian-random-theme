@@ -15,7 +15,9 @@ const pick = (key, n) => {
 
 module.exports = class RandomTheme extends Plugin {
   async onload() {
-    this.data = Object.assign({ downloaded: [], favorites: [] }, await this.loadData());
+    this.data = Object.assign({ downloaded: [], favorites: [], showRibbon: false }, await this.loadData());
+    this.ribbon = this.addRibbonIcon("dice", "Pick another theme for today", () => this.applyToday(true));
+    this.ribbon.toggle(this.data.showRibbon);
     this.app.workspace.onLayoutReady(() => this.applyToday());
     this.registerInterval(window.setInterval(() => this.applyToday(), 10 * 60 * 1000));
     this.addCommand({ id: "reroll", name: "Pick another theme for today", callback: () => this.applyToday(true) });
@@ -96,6 +98,17 @@ class RandomThemeSettings extends PluginSettingTab {
     const { downloaded, favorites } = plugin.data;
     const current = this.app.customCss.theme;
     containerEl.empty();
+
+    new Setting(containerEl)
+      .setName("Show ribbon icon")
+      .setDesc("Show a dice icon in the ribbon that picks another theme for today.")
+      .addToggle((t) =>
+        t.setValue(plugin.data.showRibbon).onChange(async (on) => {
+          plugin.data.showRibbon = on;
+          plugin.ribbon.toggle(on);
+          await plugin.save();
+        })
+      );
 
     new Setting(containerEl)
       .setName("Clear cache")

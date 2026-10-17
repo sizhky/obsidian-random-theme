@@ -8,6 +8,7 @@ Applies a different community theme every day, whether it is installed or not.
 - If the theme is not installed, the plugin downloads `theme.css` and `manifest.json` into `.obsidian/themes/<name>/`, then applies it.
 - Every 10 minutes it checks for a new day.
 - The command **Pick another theme for today** rerolls today's theme. A notice shows the theme name.
+- A dice icon in the ribbon also rerolls. Turn it on with **Show ribbon icon** in settings.
 - The command **Toggle favorite for current theme** marks the active theme as a favorite.
 - The settings tab lists every theme the plugin downloaded, with a star button per theme. **Clear cache** deletes downloaded themes that are not favorites and not active. Themes you installed yourself are never touched.
 
