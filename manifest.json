@@ -1,0 +1,10 @@
+{
+  "id": "random-theme",
+  "name": "Random Theme",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Applies a different community theme every day, installing it first when needed.",
+  "author": "sizhky",
+  "isDesktopOnly": false,
+  "authorUrl": "https://github.com/sizhky"
+}
