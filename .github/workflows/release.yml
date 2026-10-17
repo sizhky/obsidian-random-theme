@@ -30,11 +30,12 @@ jobs:
           subject-path: |
             main.js
             manifest.json
+            styles.css
 
       - name: Create or update release
         run: |
           if gh release view "$TAG" --json tagName -q .tagName; then
-            gh release upload "$TAG" main.js manifest.json --clobber
+            gh release upload "$TAG" main.js manifest.json styles.css --clobber
           else
-            gh release create "$TAG" main.js manifest.json --title "$TAG" --generate-notes
+            gh release create "$TAG" main.js manifest.json styles.css --title "$TAG" --generate-notes
           fi

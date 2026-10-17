@@ -7,30 +7,34 @@ Applies a different community theme every day, whether it is installed or not.
 - The plugin picks one theme from the official community theme list. The pick is seeded by the date, so it is stable for the whole rotation period.
 - If the theme is not installed, the plugin downloads `theme.css` and `manifest.json` into `.obsidian/themes/<name>/`, then applies it.
 
-## Theme states
+## Love and Skip
 
-Every theme is **Love**, **Okay** (default), or **Skip**.
+Mark any theme **Love** or **Skip**, or leave it with no preference.
 
-- **Love**: kept by Clear cache; the pool for **Loved only**.
-- **Skip**: never picked again. Marking the active theme Skip does not change it; it only leaves future picks.
+- **Love**: kept when you clear the cache, and used by **Loved themes only**.
+- **Skip**: never chosen again. Skipping the theme in use does not switch away from it.
 
 ## Commands
 
-- **Pick another theme**: rerolls now. A notice shows the theme name.
-- **Mark current theme: Love / Okay / Skip**
+- **Switch to a random theme**
+- **Love this theme**
+- **Skip this theme in future**
+- **Reset this theme (neither loved nor skipped)**
 
 ## Settings
 
-- **Rotation**: Off, Every startup, Daily, or Weekly.
-- **Loved only**: pick only from loved themes.
-- **Match light/dark mode**: pick only themes that support the current mode.
-- **No repeats for (days)**: skip recently used themes.
-- **Show ribbon icon**: a dice icon that rerolls.
-- **Show status bar label**: the current theme name with ♥ (Love) or ⊘ (Skip). Click it to cycle Okay → Love → Skip.
-- **Clear cache**: deletes downloaded themes that are not loved and not active. Themes you installed yourself are never touched.
-- A list of downloaded themes with a Love/Okay/Skip dropdown, and a list of skipped themes.
+- **Random theme**: a **Switch** button that changes the theme now.
+- **Rotation**: off, every startup, daily, or weekly.
+- **Loved themes only**: switch only between themes you love.
+- **Match light/dark mode**: use only themes made for the mode you are in now.
+- **Avoid repeats**: don't reuse a theme for this many days.
+- **Show ribbon icon**: a dice button that switches to a random theme.
+- **Show in status bar**: the theme name, with ♥ for Love and ⊘ for Skip. Click it to love, skip, or reset the theme.
+- **Clear cache**: deletes downloaded themes you don't love. Keeps the theme in use and themes you installed yourself.
+- **Downloaded themes**: use any of them now, or mark it Love or Skip.
+- **Skipped themes**: stop skipping any of them.
 
-Mode and no-repeat filters are skipped when they would leave nothing to pick.
+If the mode or repeat rules would leave no theme to choose, they are ignored for that switch.
 
 ## Network use
 
@@ -47,4 +51,4 @@ No other data is sent or collected.
 
 ## Install
 
-Copy `main.js` and `manifest.json` into `<vault>/.obsidian/plugins/random-theme/`, then enable **Random Theme** in **Settings → Community plugins**.
+Copy `main.js`, `manifest.json`, and `styles.css` into `<vault>/.obsidian/plugins/random-theme/`, then enable **Random Theme** in **Settings → Community plugins**.

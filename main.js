@@ -27,6 +27,8 @@ const periodKey = (rotation, d = new Date()) =>
 /** Status bar click order: Okay → Love → Skip → Okay. */
 const NEXT = { okay: "love", love: "skip", skip: "okay" };
 const MARK = { love: " ♥", okay: "", skip: " ⊘" };
+const COMMAND = { love: "Love this theme", skip: "Skip this theme in future", okay: "Reset this theme (neither loved nor skipped)" };
+const DONE = { love: "Loved", skip: "Will skip in future", okay: "Reset" };
 
 /** Same key → same index (FNV-1a). */
 const pick = (key, n) => {
@@ -53,21 +55,20 @@ module.exports = class RandomTheme extends Plugin {
     for (const k of ["dailyRotation", "day", "favorites", "blocked", "favoritesOnly"]) delete saved[k];
     this.data = Object.assign({}, DEFAULTS, saved);
 
-    this.ribbon = this.addRibbonIcon("dice", "Pick another theme", () => this.rotate(true));
+    this.ribbon = this.addRibbonIcon("dice", "Switch to a random theme", () => this.rotate(true));
     this.ribbon.toggle(this.data.showRibbon);
     this.statusEl = this.addStatusBarItem();
     this.statusEl.addClass("mod-clickable");
-    this.statusEl.setAttr("aria-label", "Click to cycle: Okay → Love → Skip");
+    this.statusEl.setAttr("aria-label", "Click to love, skip, or reset this theme");
     this.statusEl.onClickEvent(() => this.cycle());
     this.registerEvent(this.app.workspace.on("css-change", () => this.updateStatus()));
     this.updateStatus();
 
     this.app.workspace.onLayoutReady(() => this.rotate(this.data.rotation === "startup"));
     this.registerInterval(window.setInterval(() => this.rotate(), 10 * 60 * 1000));
-    this.addCommand({ id: "reroll", name: "Pick another theme", callback: () => this.rotate(true) });
-    for (const state of ["love", "okay", "skip"]) {
-      const label = state[0].toUpperCase() + state.slice(1);
-      this.addCommand({ id: state, name: `Mark current theme: ${label}`, callback: () => this.mark(state) });
+    this.addCommand({ id: "reroll", name: "Switch to a random theme", callback: () => this.rotate(true) });
+    for (const [state, name] of Object.entries(COMMAND)) {
+      this.addCommand({ id: state, name, callback: () => this.mark(state) });
     }
     this.addSettingTab(new RandomThemeSettings(this));
   }
@@ -93,13 +94,13 @@ module.exports = class RandomTheme extends Plugin {
 
   /** Sets a theme's state. Skip only affects future picks; the active theme stays. */
   async mark(state, name = this.app.customCss.theme) {
-    if (!name) return new Notice("No community theme is active");
+    if (!name) return new Notice("No theme is active");
     const without = (list) => list.filter((n) => n !== name);
     this.data.loved = state === "love" ? [...without(this.data.loved), name] : without(this.data.loved);
     this.data.skipped = state === "skip" ? [...without(this.data.skipped), name] : without(this.data.skipped);
     await this.save();
     this.updateStatus();
-    new Notice(`${name}: ${state[0].toUpperCase() + state.slice(1)}`);
+    new Notice(`${DONE[state]}: ${name}`);
   }
 
   cycle(name = this.app.customCss.theme) {
@@ -127,18 +128,23 @@ module.exports = class RandomTheme extends Plugin {
     try {
       const themes = (await requestUrl(LIST_URL)).json.sort((a, b) => a.name.localeCompare(b.name));
       const pool = this.candidates(themes);
-      if (!pool.length) return new Notice("Random Theme: no themes to pick from");
+      if (!pool.length) return new Notice("Random Theme: no theme matches your settings");
       const theme = pool[pick(reroll ? key + Date.now() : key, pool.length)];
       await this.ensureInstalled(theme);
-      this.app.customCss.setTheme(theme.name);
-      this.data.period = key;
-      this.data.history = [...this.data.history, { day: dayKey(), theme: theme.name }].slice(-100);
-      await this.save();
-      this.updateStatus();
-      new Notice(`Theme: ${theme.name}${theme.author ? ` by ${theme.author}` : ""}`);
+      await this.apply(theme);
     } catch (e) {
       console.error("random-theme", e);
     }
+  }
+
+  /** Activates an installed theme and records it for this period and the no-repeat window. */
+  async apply(theme) {
+    this.app.customCss.setTheme(theme.name);
+    this.data.period = periodKey(this.data.rotation);
+    this.data.history = [...this.data.history, { day: dayKey(), theme: theme.name }].slice(-100);
+    await this.save();
+    this.updateStatus();
+    new Notice(`Theme: ${theme.name}${theme.author ? ` by ${theme.author}` : ""}`);
   }
 
   async ensureInstalled({ name, repo }) {
@@ -193,36 +199,50 @@ class RandomThemeSettings extends PluginSettingTab {
         .addToggle((t) => t.setValue(plugin.data[key]).onChange(async (on) => (await set(key, on), after(on))));
 
     new Setting(containerEl)
+      .setName("Random theme")
+      .setDesc(`Now using ${current || "the default theme"}.`)
+      .addButton((b) =>
+        b
+          .setButtonText("Switch")
+          .setCta()
+          .onClick(async () => {
+            b.setDisabled(true);
+            await plugin.rotate(true);
+            this.display();
+          })
+      );
+
+    new Setting(containerEl)
       .setName("Rotation")
-      .setDesc("When to pick a new theme. Rerolls work in every mode.")
+      .setDesc("How often to switch to a new theme on its own.")
       .addDropdown((d) =>
         d
           .addOptions({ off: "Off", startup: "Every startup", daily: "Daily", weekly: "Weekly" })
           .setValue(plugin.data.rotation)
           .onChange((v) => set("rotation", v))
       );
-    toggle("Loved only", "Pick only from themes marked Love.", "lovedOnly");
-    toggle("Match light/dark mode", "Pick only themes that support the current mode, when any exist.", "matchMode");
+    toggle("Loved themes only", "Switch only between themes you love.", "lovedOnly");
+    toggle("Match light/dark mode", "Use only themes made for the mode you are in now.", "matchMode");
     new Setting(containerEl)
-      .setName("No repeats for (days)")
-      .setDesc("Skip themes used in this many recent days, when other themes exist. 0 turns this off.")
+      .setName("Avoid repeats")
+      .setDesc("Don't reuse a theme for this many days. Set to 0 to allow repeats.")
       .addSlider((s) =>
         s.setLimits(0, 60, 1).setValue(plugin.data.noRepeatDays).setDynamicTooltip().onChange((v) => set("noRepeatDays", v))
       );
-    toggle("Show ribbon icon", "Show a dice icon in the ribbon that picks another theme.", "showRibbon", (on) =>
+    toggle("Show ribbon icon", "Add a dice button to the ribbon that switches to a random theme.", "showRibbon", (on) =>
       plugin.ribbon.toggle(on)
     );
-    toggle("Show status bar label", "Show the current theme in the status bar. Click it to cycle Okay → Love → Skip.", "showStatusBar", () =>
+    toggle("Show in status bar", "Show the theme name in the status bar. Click it to love, skip, or reset the theme.", "showStatusBar", () =>
       plugin.updateStatus()
     );
 
     new Setting(containerEl)
       .setName("Clear cache")
-      .setDesc("Delete downloaded themes that are not loved and not active. Themes you installed yourself are never touched.")
+      .setDesc("Delete downloaded themes you don't love. Keeps the theme in use and themes you installed yourself.")
       .addButton((b) =>
         b.setButtonText("Clear cache").setWarning().onClick(async () => {
           const removed = await plugin.clearCache();
-          new Notice(`Removed ${removed.length} theme(s)`);
+          new Notice(`Deleted ${removed.length} ${removed.length === 1 ? "theme" : "themes"}`);
           this.display();
         })
       );
@@ -231,12 +251,22 @@ class RandomThemeSettings extends PluginSettingTab {
     if (!downloaded.length) containerEl.createEl("p", { text: "No themes downloaded yet." });
     for (const name of downloaded) {
       const state = plugin.stateOf(name);
-      new Setting(containerEl)
+      const row = new Setting(containerEl)
         .setName(`${name}${MARK[state]}`)
-        .setDesc(name === current ? "Active" : "")
+        .setDesc(name === current ? "In use" : "");
+      row.descEl.toggle(name === current);
+      row.setClass("random-theme-row");
+      row
+        .addExtraButton((b) =>
+          b
+            .setIcon("paintbrush")
+            .setTooltip("Use now")
+            .setDisabled(name === current)
+            .onClick(async () => (await plugin.apply({ name }), this.display()))
+        )
         .addDropdown((d) =>
           d
-            .addOptions({ love: "Love", okay: "Okay", skip: "Skip" })
+            .addOptions({ okay: "No preference", love: "Love", skip: "Skip" })
             .setValue(state)
             .onChange(async (v) => (await plugin.mark(v, name), this.display()))
         );
@@ -245,8 +275,8 @@ class RandomThemeSettings extends PluginSettingTab {
     new Setting(containerEl).setName(`Skipped themes (${skipped.length})`).setHeading();
     if (!skipped.length) containerEl.createEl("p", { text: "No skipped themes." });
     for (const name of skipped) {
-      new Setting(containerEl).setName(name).addExtraButton((b) =>
-        b.setIcon("undo-2").setTooltip("Mark Okay").onClick(async () => (await plugin.mark("okay", name), this.display()))
+      new Setting(containerEl).setName(name).setClass("random-theme-row").addExtraButton((b) =>
+        b.setIcon("undo-2").setTooltip("Stop skipping").onClick(async () => (await plugin.mark("okay", name), this.display()))
       );
     }
   }
